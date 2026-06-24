@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CountUp } from "@/components/CountUp";
 import {
   PieChart,
   Pie,
@@ -65,19 +66,19 @@ export function AnalyticsPage() {
             { label: "Total Roads", value: summary?.total_roads || 0, suffix: "" },
             { label: "Total Potholes", value: summary?.total_potholes || 0, suffix: "" },
             { label: "Critical Zones", value: summary?.critical_zones || 0, suffix: "" },
-            { label: "Avg Diameter", value: summary?.avg_diameter_cm?.toFixed(1) || "0", suffix: "cm" },
+            { label: "Avg Diameter", value: summary?.avg_diameter_cm || 0, suffix: "cm", decimals: 1 },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: i * 0.08 }}
+              whileHover={{ y: -4, boxShadow: "0 12px 32px rgba(0,0,0,0.08)" }}
               className="bg-white rounded-2xl border border-[#e8e4df] shadow-sm p-5"
             >
               <p className="text-xs font-medium text-[#8a8a8a] uppercase tracking-widest mb-2">{stat.label}</p>
               <p className="text-3xl font-display font-bold text-[#2d2d2d]">
-                {stat.value}
-                {stat.suffix && <span className="text-lg text-[#8a8a8a] ml-1">{stat.suffix}</span>}
+                <CountUp end={stat.value} decimals={stat.decimals || 0} suffix={` ${stat.suffix}`} />
               </p>
             </motion.div>
           ))
