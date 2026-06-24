@@ -4,12 +4,14 @@ import { RankingPanel } from "@/components/RankingPanel";
 import { FeedPanel } from "@/components/FeedPanel";
 import { Map } from "@/components/Map";
 import { DetectionDrawer } from "@/components/DetectionDrawer";
-import { useGetDashboardSummary } from "@workspace/api-client-react";
+import { useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
 
 export default function Dashboard() {
   const [selectedDetectionId, setSelectedDetectionId] = useState<number | null>(null);
-  const { data: summary } = useGetDashboardSummary({ query: { refetchInterval: 30000 } });
+  const { data: summary } = useGetDashboardSummary({
+    query: { refetchInterval: 30000, queryKey: getGetDashboardSummaryQueryKey() },
+  });
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }} className="bg-background font-sans overflow-hidden">

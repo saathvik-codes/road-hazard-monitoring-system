@@ -1,10 +1,12 @@
-import { useGetDashboardSummary } from "@workspace/api-client-react";
+import { useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
 export function SummaryCards() {
-  const { data, isLoading } = useGetDashboardSummary({ query: { refetchInterval: 30000 } });
+  const { data, isLoading } = useGetDashboardSummary({
+    query: { refetchInterval: 30000, queryKey: getGetDashboardSummaryQueryKey() },
+  });
 
   if (isLoading) {
     return (

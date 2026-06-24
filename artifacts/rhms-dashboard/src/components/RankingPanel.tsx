@@ -1,9 +1,11 @@
-import { useGetRoadRanking } from "@workspace/api-client-react";
+import { useGetRoadRanking, getGetRoadRankingQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function RankingPanel() {
-  const { data, isLoading } = useGetRoadRanking({ query: { refetchInterval: 30000 } });
+  const { data, isLoading } = useGetRoadRanking({
+    query: { refetchInterval: 30000, queryKey: getGetRoadRankingQueryKey() },
+  });
 
   if (isLoading) {
     return (

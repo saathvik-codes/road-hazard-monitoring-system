@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useListDetections, getListDetectionsQueryKey } from "@workspace/api-client-react";
+import { motion } from "framer-motion";
 
 declare global {
   interface Window {
     google: any;
-    initRHMSMap: () => void;
+    initRHMSMap2: () => void;
   }
 }
 
@@ -23,20 +24,20 @@ const MAP_STYLES = [
 ];
 
 const SEVERITY_COLORS: Record<string, string> = {
-  Low: "#22c55e",
-  Medium: "#eab308",
-  High: "#f97316",
-  Critical: "#ef4444",
+  Low: "#4caf50",
+  Medium: "#ffc107",
+  High: "#ff9800",
+  Critical: "#f44336",
 };
 
 const SEVERITY_HALO: Record<string, string> = {
-  Low: "rgba(34,197,94,0.15)",
-  Medium: "rgba(234,179,8,0.18)",
-  High: "rgba(249,115,22,0.2)",
-  Critical: "rgba(239,68,68,0.22)",
+  Low: "rgba(76,175,80,0.12)",
+  Medium: "rgba(255,193,7,0.14)",
+  High: "rgba(255,152,0,0.16)",
+  Critical: "rgba(244,67,54,0.18)",
 };
 
-export function Map({ onMarkerClick }: MapProps) {
+export function AnimatedMap({ onMarkerClick }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -58,7 +59,7 @@ export function Map({ onMarkerClick }: MapProps) {
           disableDefaultUI: true,
           zoomControl: true,
           zoomControlOptions: {
-            position: window.google.maps.ControlPosition.RIGHT_CENTER,
+            position: window.google.maps.ControlPosition.RIGHT_BOTTOM,
           },
         });
         mapInstanceRef.current = map;
@@ -71,11 +72,11 @@ export function Map({ onMarkerClick }: MapProps) {
     if (window.google?.maps) {
       initMap();
     } else {
-      window.initRHMSMap = initMap;
-      if (!document.getElementById("gmaps-script")) {
+      window.initRHMSMap2 = initMap;
+      if (!document.getElementById("gmaps-script-2")) {
         const script = document.createElement("script");
-        script.id = "gmaps-script";
-        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCpmj1Ab8XnpnXNPOLiT5EKnqf9AS5N4VQ&callback=initRHMSMap`;
+        script.id = "gmaps-script-2";
+        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCpmj1Ab8XnpnXNPOLiT5EKnqf9AS5N4VQ&callback=initRHMSMap2`;
         script.async = true;
         script.defer = true;
         document.head.appendChild(script);
@@ -99,19 +100,19 @@ export function Map({ onMarkerClick }: MapProps) {
       markersRef.current = [];
       circlesRef.current = [];
 
-      detections.forEach((d) => {
+      detections.forEach((d, i) => {
         const position = { lat: d.latitude, lng: d.longitude };
         const severity = d.severity as string;
 
-        const haloRadius = severity === "Critical" ? 600
-          : severity === "High" ? 450
-          : severity === "Medium" ? 300 : 200;
+        const haloRadius = severity === "Critical" ? 550
+          : severity === "High" ? 400
+          : severity === "Medium" ? 280 : 180;
 
         const circle = new window.google.maps.Circle({
           strokeColor: SEVERITY_COLORS[severity] ?? "#94a3b8",
-          strokeOpacity: 0.4,
+          strokeOpacity: 0.35,
           strokeWeight: 1,
-          fillColor: SEVERITY_HALO[severity] ?? "rgba(148,163,184,0.15)",
+          fillColor: SEVERITY_HALO[severity] ?? "rgba(148,163,184,0.12)",
           fillOpacity: 1,
           map: mapInstanceRef.current,
           center: position,
@@ -134,9 +135,10 @@ export function Map({ onMarkerClick }: MapProps) {
             strokeWeight: 2.5,
             scale,
           },
-          title: `${d.road_name} — ${d.pothole_count} potholes (${severity})`,
+          title: `${d.road_name} \u2014 ${d.pothole_count} potholes (${severity})`,
           cursor: "pointer",
           zIndex: severity === "Critical" ? 4 : severity === "High" ? 3 : 2,
+          animation: window.google.maps.Animation.DROP,
         });
 
         marker.addListener("click", () => onMarkerClick(d.id));
@@ -148,25 +150,35 @@ export function Map({ onMarkerClick }: MapProps) {
   }, [detections, mapReady, onMarkerClick]);
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden shadow-sm border border-border">
+    <div className="relative w-full h-full">
       <div ref={mapRef} className="w-full h-full bg-[#f0ede8]" />
       {!mapReady && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f7f4f0] gap-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground font-medium">Loading map...</p>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+            className="w-8 h-8 border-2 border-[#2d4a7c] border-t-transparent rounded-full"
+          />
+          <p className="text-sm text-[#8a8a8a] font-medium">Loading map...</p>
         </div>
       )}
-      <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-border flex items-center gap-3">
+      {/* Legend */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md rounded-xl px-3 py-2 shadow-sm border border-[#e8e4df] flex items-center gap-3"
+      >
         {(["Low", "Medium", "High", "Critical"] as const).map((s) => (
           <div key={s} className="flex items-center gap-1.5">
             <span
               className="inline-block w-2.5 h-2.5 rounded-full"
               style={{ backgroundColor: SEVERITY_COLORS[s] }}
             />
-            <span className="text-xs text-muted-foreground font-medium">{s}</span>
+            <span className="text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-wider">{s}</span>
           </div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useGetDetectionFeed } from "@workspace/api-client-react";
+import { useGetDetectionFeed, getGetDetectionFeedQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,7 +12,10 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 export function FeedPanel() {
-  const { data, isLoading } = useGetDetectionFeed({ params: { limit: 20 } }, { query: { refetchInterval: 10000 } });
+  const { data, isLoading } = useGetDetectionFeed(
+    { limit: 20 },
+    { query: { refetchInterval: 10000, queryKey: getGetDetectionFeedQueryKey({ limit: 20 }) } }
+  );
 
   return (
     <Card className="h-full border-0 shadow-sm bg-white overflow-hidden flex flex-col">
