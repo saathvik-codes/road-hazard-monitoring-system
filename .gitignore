@@ -66,8 +66,14 @@ replit.md
 *.log
 logs/
 
-# Internal mockup sandbox
+# Internal mockup sandbox (Replit prototype, not needed)
 artifacts/mockup-sandbox/
+
+# Jupyter notebooks and data science files
+*.ipynb
+
+# Replit git hooks
+scripts/post-merge.sh
 
 # Junk / old exported folders
 attached_assets/
