@@ -1,5 +1,11 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  getListDetectionsQueryKey,
+  getGetDashboardSummaryQueryKey,
+  getGetRoadRankingQueryKey,
+} from "@workspace/api-client-react";
 import { Upload, MapPin, CheckCircle, AlertCircle, Loader2, ImageIcon, Video } from "lucide-react";
 
 type UploadState = "idle" | "uploading" | "success" | "error";
@@ -28,6 +34,7 @@ const SEVERITY_DOT: Record<string, string> = {
 };
 
 export function UploadPage() {
+  const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [locationId, setLocationId] = useState("");
   const [latitude, setLatitude] = useState("");
@@ -76,6 +83,10 @@ export function UploadPage() {
       } else {
         setResult(data);
         setState("success");
+        // Immediately refresh the map and summary without waiting for the 30s poll
+        queryClient.invalidateQueries({ queryKey: getListDetectionsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetRoadRankingQueryKey() });
       }
     } catch (err) {
       setState("error");
