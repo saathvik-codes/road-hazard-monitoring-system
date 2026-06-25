@@ -8,12 +8,17 @@ import { DB_PATH, YOLO_DIR, saveDetectionToColab } from "../lib/colab-store";
 
 const router = Router();
 
+const ACCEPTED_TYPES = /\.(jpg|jpeg|png|mp4|avi|mov|mkv|webm)$/i;
+
 const upload = multer({
   dest: os.tmpdir(),
   limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB
   fileFilter: (_req, file, cb) => {
-    const ok = /\.(jpg|jpeg|png|mp4|avi|mov|mkv|webm)$/i.test(file.originalname);
-    cb(null, ok);
+    if (ACCEPTED_TYPES.test(file.originalname)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Unsupported file type. Please upload an image (JPG, PNG) or video (MP4, AVI, MOV, MKV, WEBM).`));
+    }
   },
 });
 
@@ -64,7 +69,15 @@ function simulateDetection(location_id: string, latitude: string, longitude: str
  *   latitude   — number
  *   longitude  — number
  */
-router.post("/", upload.single("file"), async (req, res) => {
+router.post("/", (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    next();
+  });
+}, async (req, res) => {
   const file = req.file;
   if (!file) {
     res.status(400).json({ error: "No file uploaded" });
