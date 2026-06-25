@@ -44,7 +44,16 @@ Thumbs.db
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
-# Replit
+# Replit — never commit these
+.replit
+.replitignore
+replit.md
+.replit-artifact/
+**/.replit-artifact/
+
+# Claude Code internal
+.claude/
+
 .cache/
 .local/
 
