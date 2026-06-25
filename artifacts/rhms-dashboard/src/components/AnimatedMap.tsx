@@ -76,7 +76,9 @@ export function AnimatedMap({ onMarkerClick }: MapProps) {
       if (!document.getElementById("gmaps-script-2")) {
         const script = document.createElement("script");
         script.id = "gmaps-script-2";
-        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCpmj1Ab8XnpnXNPOLiT5EKnqf9AS5N4VQ&callback=initRHMSMap2`;
+        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+        const keyParam = apiKey ? `&key=${apiKey}` : "";
+        script.src = `https://maps.googleapis.com/maps/api/js?callback=initRHMSMap2${keyParam}`;
         script.async = true;
         script.defer = true;
         document.head.appendChild(script);

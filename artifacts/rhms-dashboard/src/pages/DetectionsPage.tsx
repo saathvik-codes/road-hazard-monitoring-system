@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useListDetections, getListDetectionsQueryKey } from "@workspace/api-client-react";
+import { ArrowUpDown, MapPin } from "lucide-react";
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
-import { ArrowUpDown, MapPin } from "lucide-react";
 
 const SEVERITY_COLORS: Record<string, string> = {
   Low: "bg-[#e8f5e9] text-[#2e7d32] border-[#a5d6a7]",

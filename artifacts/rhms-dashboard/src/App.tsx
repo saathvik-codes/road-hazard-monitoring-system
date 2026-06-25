@@ -1,6 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch } from "wouter";
 import { Layout } from "@/components/Layout";
 import { OverviewPage } from "@/pages/OverviewPage";
@@ -20,17 +18,14 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Layout>
-          <Switch>
-            <Route path="/" component={OverviewPage} />
-            <Route path="/detections" component={DetectionsPage} />
-            <Route path="/roads" component={RoadsPage} />
-            <Route path="/analytics" component={AnalyticsPage} />
-          </Switch>
-        </Layout>
-        <Toaster />
-      </TooltipProvider>
+      <Layout>
+        <Switch>
+          <Route path="/" component={OverviewPage} />
+          <Route path="/detections" component={DetectionsPage} />
+          <Route path="/roads" component={RoadsPage} />
+          <Route path="/analytics" component={AnalyticsPage} />
+        </Switch>
+      </Layout>
     </QueryClientProvider>
   );
 }
