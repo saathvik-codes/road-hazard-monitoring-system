@@ -1,21 +1,50 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
-import { detectionsTable } from "@workspace/db";
-import { desc, asc, sql } from "drizzle-orm";
+import { loadColabSnapshot } from "../lib/colab-store";
 
 const router = Router();
 
 router.get("/ranking", async (req, res) => {
-  const rows = await db
-    .select({
-      road_name: detectionsTable.road_name,
-      total_potholes: sql<number>`sum(${detectionsTable.pothole_count})::int`,
-      avg_score: sql<number>`avg(${detectionsTable.severity_score})::float`,
-      dominant_severity: sql<string>`mode() within group (order by ${detectionsTable.severity})`,
+  const snapshot = loadColabSnapshot();
+  const grouped = new Map<
+    string,
+    { road_name: string; total_potholes: number; scores: number[]; severities: string[] }
+  >();
+
+  for (const detection of snapshot.detections) {
+    const severityScore = detection.avg_diameter + 10 * detection.pothole_count;
+    const current = grouped.get(detection.location_id) ?? {
+      road_name: detection.location_id,
+      total_potholes: 0,
+      scores: [],
+      severities: [],
+    };
+
+    current.total_potholes += detection.pothole_count;
+    current.scores.push(severityScore);
+    current.severities.push(detection.severity);
+    grouped.set(detection.location_id, current);
+  }
+
+  const rows = [...grouped.values()]
+    .map((row) => {
+      const counts = row.severities.reduce<Record<string, number>>((acc, severity) => {
+        acc[severity] = (acc[severity] ?? 0) + 1;
+        return acc;
+      }, {});
+
+      const dominantSeverity = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Low";
+      const avgScore = row.scores.length > 0
+        ? row.scores.reduce((sum, value) => sum + value, 0) / row.scores.length
+        : 0;
+
+      return {
+        road_name: row.road_name,
+        total_potholes: row.total_potholes,
+        avg_score: avgScore,
+        dominant_severity: dominantSeverity,
+      };
     })
-    .from(detectionsTable)
-    .groupBy(detectionsTable.road_name)
-    .orderBy(desc(sql`avg(${detectionsTable.severity_score})`));
+    .sort((a, b) => b.avg_score - a.avg_score);
 
   const worst = rows.slice(0, 5).map((r, i) => ({
     rank: i + 1,

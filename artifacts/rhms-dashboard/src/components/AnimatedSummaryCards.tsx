@@ -20,9 +20,9 @@ export function AnimatedSummaryCards() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-28 rounded-2xl" />
+          <Skeleton key={i} className={`h-28 rounded-2xl${i === 4 ? " col-span-2 md:col-span-1" : ""}`} />
         ))}
       </div>
     );
@@ -39,11 +39,12 @@ export function AnimatedSummaryCards() {
   };
 
   return (
-    <div className="grid grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {cardConfig.map((card, i) => {
         const Icon = card.icon;
         const val = values[card.key as keyof typeof values];
         const isNumber = typeof val === "number";
+        const isLast = i === cardConfig.length - 1;
         return (
           <motion.div
             key={card.key}
@@ -51,7 +52,7 @@ export function AnimatedSummaryCards() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}
             whileHover={{ y: -4, boxShadow: "0 12px 32px rgba(0,0,0,0.08)" }}
-            className="bg-white rounded-2xl border border-[#e8e4df] shadow-sm p-5 relative overflow-hidden group"
+            className={`bg-white rounded-2xl border border-[#e8e4df] shadow-sm p-4 lg:p-5 relative overflow-hidden group${isLast ? " col-span-2 md:col-span-1" : ""}`}
           >
             {/* Animated top bar */}
             <motion.div

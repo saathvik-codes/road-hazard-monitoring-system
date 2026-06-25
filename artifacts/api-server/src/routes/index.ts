@@ -5,6 +5,7 @@ import potholesRouter from "./potholes";
 import roadsRouter from "./roads";
 import feedRouter from "./feed";
 import summaryRouter from "./summary";
+import uploadRouter from "./upload";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use("/potholes", potholesRouter);
 router.use("/roads", roadsRouter);
 router.use("/feed", feedRouter);
 router.use("/summary", summaryRouter);
+router.use("/upload", uploadRouter);
 
 export default router;

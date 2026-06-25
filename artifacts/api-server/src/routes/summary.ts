@@ -1,45 +1,37 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
-import { detectionsTable } from "@workspace/db";
-import { sql, desc } from "drizzle-orm";
+import { loadColabSnapshot } from "../lib/colab-store";
 
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const [stats] = await db
-    .select({
-      total_roads: sql<number>`count(distinct ${detectionsTable.road_name})::int`,
-      total_potholes: sql<number>`sum(${detectionsTable.pothole_count})::int`,
-      critical_zones: sql<number>`count(case when ${detectionsTable.severity} = 'Critical' then 1 end)::int`,
-      avg_diameter_cm: sql<number>`round(avg(${detectionsTable.avg_diameter_cm})::numeric, 1)::float`,
-    })
-    .from(detectionsTable);
-
-  const [lastDetection] = await db
-    .select({ detected_at: detectionsTable.detected_at })
-    .from(detectionsTable)
-    .orderBy(desc(detectionsTable.detected_at))
-    .limit(1);
-
-  const breakdown = await db
-    .select({
-      severity: detectionsTable.severity,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(detectionsTable)
-    .groupBy(detectionsTable.severity);
-
+  const snapshot = loadColabSnapshot();
   const severityBreakdown = { Low: 0, Medium: 0, High: 0, Critical: 0 } as Record<string, number>;
-  for (const row of breakdown) {
-    severityBreakdown[row.severity] = row.count;
+  let totalPotholes = 0;
+  let totalDiameter = 0;
+  let criticalZones = 0;
+
+  for (const detection of snapshot.detections) {
+    totalPotholes += detection.pothole_count;
+    totalDiameter += detection.avg_diameter;
+    if (detection.severity in severityBreakdown) {
+      severityBreakdown[detection.severity] += 1;
+    }
+    if (detection.severity === "Critical") {
+      criticalZones += 1;
+    }
   }
 
+  const totalRoads = new Set(snapshot.locations.map((location) => location.location_id)).size;
+  const avgDiameter = snapshot.detections.length > 0 ? totalDiameter / snapshot.detections.length : 0;
+  const lastDetectionAt = [...snapshot.detections]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]?.timestamp ?? null;
+
   res.json({
-    total_roads: stats?.total_roads ?? 0,
-    total_potholes: stats?.total_potholes ?? 0,
-    critical_zones: stats?.critical_zones ?? 0,
-    avg_diameter_cm: stats?.avg_diameter_cm ?? 0,
-    last_detection_at: lastDetection?.detected_at?.toISOString() ?? null,
+    total_roads: totalRoads,
+    total_potholes: totalPotholes,
+    critical_zones: criticalZones,
+    avg_diameter_cm: Number(avgDiameter.toFixed(1)),
+    last_detection_at: lastDetectionAt,
     severity_breakdown: severityBreakdown,
   });
 });

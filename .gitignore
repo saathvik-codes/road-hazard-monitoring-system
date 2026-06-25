@@ -47,3 +47,15 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Environment files - clients create their own
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Internal mockup sandbox
+artifacts/mockup-sandbox/

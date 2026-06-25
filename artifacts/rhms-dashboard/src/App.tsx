@@ -5,6 +5,7 @@ import { OverviewPage } from "@/pages/OverviewPage";
 import { DetectionsPage } from "@/pages/DetectionsPage";
 import { RoadsPage } from "@/pages/RoadsPage";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
+import { UploadPage } from "@/pages/UploadPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,6 +25,7 @@ function App() {
           <Route path="/detections" component={DetectionsPage} />
           <Route path="/roads" component={RoadsPage} />
           <Route path="/analytics" component={AnalyticsPage} />
+          <Route path="/upload" component={UploadPage} />
         </Switch>
       </Layout>
     </QueryClientProvider>
