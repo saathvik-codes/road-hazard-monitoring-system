@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -7,8 +7,10 @@ import {
   getGetRoadRankingQueryKey,
 } from "@workspace/api-client-react";
 import { Upload, MapPin, CheckCircle, AlertCircle, Loader2, ImageIcon, Video } from "lucide-react";
+import { getCurrentPosition, reverseGeocode, geolocationErrorMessage } from "@/lib/geolocation";
 
 type UploadState = "idle" | "uploading" | "success" | "error";
+type GeoState = "idle" | "locating" | "done" | "error";
 
 interface DetectionResult {
   detection_id: number;
@@ -43,9 +45,50 @@ export function UploadPage() {
   const [result, setResult] = useState<DetectionResult | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [geoState, setGeoState] = useState<GeoState>("idle");
+  const [geoError, setGeoError] = useState("");
+  const [detectedAddress, setDetectedAddress] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
   const isVideo = file?.type.startsWith("video/");
+
+  async function detectLocation() {
+    setGeoState("locating");
+    setGeoError("");
+    setDetectedAddress(null);
+    try {
+      const pos = await getCurrentPosition();
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      setLatitude(lat.toFixed(6));
+      setLongitude(lon.toFixed(6));
+
+      const address = await reverseGeocode(lat, lon);
+      if (address) {
+        setLocationId(address);
+        setDetectedAddress(address);
+      }
+      setGeoState("done");
+    } catch (err) {
+      setGeoState("error");
+      setGeoError(geolocationErrorMessage(err));
+    }
+  }
+
+  // Fire the browser's location permission prompt as soon as this page opens —
+  // both desktop and mobile show the native "Allow location access" dialog.
+  useEffect(() => {
+    detectLocation();
+  }, []);
+
+  // Scroll the result into view as soon as it lands — it renders below a fairly
+  // tall form, so without this the user has to manually scroll to see it.
+  useEffect(() => {
+    if (state === "success" || state === "error") {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [state]);
 
   function pickFile(f: File) {
     setFile(f);
@@ -164,6 +207,30 @@ export function UploadPage() {
             <h3 className="text-sm font-bold text-[#2d2d2d]">Location Details</h3>
           </div>
 
+          {geoState === "locating" && (
+            <div className="flex items-center gap-2 rounded-xl border border-[#2d4a7c]/20 bg-[#f0f4ff] px-3 py-2.5 text-xs font-bold text-[#2d4a7c]">
+              <Loader2 size={14} className="animate-spin shrink-0" />
+              Waiting for location permission…
+            </div>
+          )}
+          {geoState === "done" && (
+            <div className="flex items-start gap-1.5 text-xs text-[#2e7d32]">
+              <CheckCircle size={13} className="mt-0.5 shrink-0" />
+              <span>{detectedAddress ? `Detected: ${detectedAddress}` : "Coordinates detected."}</span>
+            </div>
+          )}
+          {geoState === "error" && (
+            <div className="flex items-start gap-1.5 text-xs text-[#c62828]">
+              <AlertCircle size={13} className="mt-0.5 shrink-0" />
+              <span>
+                {geoError}{" "}
+                <button type="button" onClick={detectLocation} className="font-bold underline underline-offset-2 hover:text-[#a01c1c]">
+                  Try again
+                </button>
+              </span>
+            </div>
+          )}
+
           <div className="space-y-3">
             <div>
               <label className="text-xs font-semibold text-[#6b6b6b] uppercase tracking-wider block mb-1">Location ID</label>
@@ -225,10 +292,11 @@ export function UploadPage() {
       <AnimatePresence>
         {state === "success" && result && (
           <motion.div
+            ref={resultRef}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="bg-white rounded-2xl border border-[#e8e4df] p-5 space-y-4"
+            className="bg-white rounded-2xl border border-[#e8e4df] p-5 space-y-4 scroll-mt-20"
           >
             <div className="flex items-center gap-2">
               <CheckCircle size={18} className="text-[#4caf50]" />
@@ -265,10 +333,11 @@ export function UploadPage() {
 
         {state === "error" && (
           <motion.div
+            ref={resultRef}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="flex items-start gap-3 rounded-2xl border border-[#ef9a9a] bg-[#ffebee] p-4"
+            className="flex items-start gap-3 rounded-2xl border border-[#ef9a9a] bg-[#ffebee] p-4 scroll-mt-20"
           >
             <AlertCircle size={18} className="text-[#c62828] mt-0.5 shrink-0" />
             <div>

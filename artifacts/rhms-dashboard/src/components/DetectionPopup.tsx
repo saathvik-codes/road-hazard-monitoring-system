@@ -1,10 +1,13 @@
-import { X, MapPin, Layers, Circle, Calendar, Gauge, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { X, MapPin, Layers, Circle, Calendar, Gauge, TrendingUp, Play } from "lucide-react";
 import { useGetDetection, useListPotholes, getGetDetectionQueryKey, getListPotholesQueryKey } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { CountUp } from "@/components/CountUp";
+import { MediaLightbox } from "@/components/MediaLightbox";
+import { isVideoUrl } from "@/lib/media";
 
 const SEVERITY_COLORS: Record<string, string> = {
   Low: "bg-[#e8f5e9] text-[#2e7d32] border-[#a5d6a7]",
@@ -26,6 +29,7 @@ interface DetectionPopupProps {
 }
 
 export function DetectionPopup({ id, onClose }: DetectionPopupProps) {
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const { data: detection, isLoading: loadingDetection } = useGetDetection(id || 0, {
     query: { queryKey: getGetDetectionQueryKey(id || 0), enabled: id !== null },
   });
@@ -217,10 +221,28 @@ export function DetectionPopup({ id, onClose }: DetectionPopupProps) {
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: 0.3 + i * 0.08 }}
                           whileHover={{ scale: 1.05 }}
-                          className="aspect-square bg-[#f0ece5] rounded-xl border border-[#e8e4df] overflow-hidden cursor-pointer"
+                          onClick={() => img.url && setLightboxUrl(img.url)}
+                          className="relative aspect-square bg-[#f0ece5] rounded-xl border border-[#e8e4df] overflow-hidden cursor-pointer"
                         >
                           {img.url ? (
-                            <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
+                            isVideoUrl(img.url) ? (
+                              <>
+                                <video
+                                  src={img.url}
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                  className="w-full h-full object-cover pointer-events-none"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/15">
+                                  <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center">
+                                    <Play size={12} className="text-[#2d2d2d] ml-0.5" fill="currentColor" />
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
+                            )
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <span className="text-[9px] text-[#8a8a8a] font-bold uppercase tracking-widest">No Image</span>
@@ -236,6 +258,7 @@ export function DetectionPopup({ id, onClose }: DetectionPopupProps) {
           </motion.div>
         </motion.div>
       )}
+      <MediaLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
     </AnimatePresence>
   );
 }

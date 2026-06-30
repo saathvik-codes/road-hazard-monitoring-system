@@ -6,6 +6,7 @@ import {
   BarChart3,
   LineChart,
   Upload,
+  Images,
   ChevronLeft,
   ChevronRight,
   Zap,
@@ -21,6 +22,7 @@ const NAV = [
   { path: "/detections", label: "Detections", icon: MapPin },
   { path: "/roads",      label: "Roads",       icon: BarChart3 },
   { path: "/analytics",  label: "Analytics",  icon: LineChart },
+  { path: "/gallery",    label: "Gallery",     icon: Images },
   { path: "/upload",     label: "Upload",      icon: Upload },
 ];
 
