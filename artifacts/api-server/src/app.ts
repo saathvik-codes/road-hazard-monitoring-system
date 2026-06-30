@@ -1,8 +1,12 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import { mkdirSync } from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { UPLOADS_DIR } from "./lib/colab-store";
+
+mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const app: Express = express();
 
@@ -26,6 +30,7 @@ app.use(
   }),
 );
 app.use(cors());
+app.use("/uploads", express.static(UPLOADS_DIR));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

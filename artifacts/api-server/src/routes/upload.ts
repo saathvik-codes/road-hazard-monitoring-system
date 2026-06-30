@@ -1,14 +1,20 @@
 import { Router } from "express";
 import { execFileSync } from "node:child_process";
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, copyFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import crypto from "node:crypto";
 import multer from "multer";
-import { DB_PATH, YOLO_DIR, saveDetectionToColab } from "../lib/colab-store";
+import { DB_PATH, YOLO_DIR, UPLOADS_DIR, saveDetectionToColab } from "../lib/colab-store";
+import { compressVideoIfNeeded } from "../lib/video-compress";
 
 const router = Router();
 
 const ACCEPTED_TYPES = /\.(jpg|jpeg|png|mp4|avi|mov|mkv|webm)$/i;
+
+const ORIGINALS_DIR = path.join(UPLOADS_DIR, "originals");
+mkdirSync(ORIGINALS_DIR, { recursive: true });
+mkdirSync(path.join(UPLOADS_DIR, "detected"), { recursive: true });
 
 const upload = multer({
   dest: os.tmpdir(),
@@ -45,21 +51,11 @@ function getSeverity(avgDiameter: number, potholeCount: number): string {
   return "Low";
 }
 
-function simulateDetection(location_id: string, latitude: string, longitude: string) {
+function simulateStats() {
   const potholeCount = Math.floor(Math.random() * 5);
   const avgDiameter = potholeCount > 0 ? Math.round((15 + Math.random() * 35) * 100) / 100 : 0;
   const severity = getSeverity(avgDiameter, potholeCount);
-  const timestamp = new Date().toISOString();
-  const detection = saveDetectionToColab({
-    location_id,
-    latitude: parseFloat(latitude),
-    longitude: parseFloat(longitude),
-    pothole_count: potholeCount,
-    avg_diameter: avgDiameter,
-    severity,
-    timestamp,
-  });
-  return { detection_id: detection.id, location_id, latitude: parseFloat(latitude), longitude: parseFloat(longitude), pothole_count: potholeCount, avg_diameter: avgDiameter, severity, timestamp, simulated: true };
+  return { pothole_count: potholeCount, avg_diameter: avgDiameter, severity, detected_file: null as string | null };
 }
 
 /** POST /api/upload
@@ -86,27 +82,69 @@ router.post("/", (req, res, next) => {
 
   const { location_id, latitude, longitude } = req.body as Record<string, string>;
   if (!location_id || !latitude || !longitude) {
-    if (file) unlinkSync(file.path);
+    unlinkSync(file.path);
     res.status(400).json({ error: "location_id, latitude and longitude are required" });
     return;
   }
 
+  const storedName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${path.extname(file.originalname)}`;
+  const persistedPath = path.join(ORIGINALS_DIR, storedName);
+  copyFileSync(file.path, persistedPath);
+  unlinkSync(file.path);
+
+  // Large videos get re-encoded down before detection runs and before serving.
+  const finalOriginalPath = compressVideoIfNeeded(persistedPath);
+  const host = `${req.protocol}://${req.get("host")}`;
+  const originalUrl = `${host}/uploads/originals/${path.basename(finalOriginalPath)}`;
+
   const modelPath = path.join(YOLO_DIR, "best.pt");
   const scriptPath = path.join(YOLO_DIR, "process_upload.py");
 
+  let stats: { pothole_count: number; avg_diameter: number; severity: string; detected_file: string | null };
   try {
     if (existsSync(modelPath) && existsSync(scriptPath)) {
-      const result = runPython([scriptPath, file.path, location_id, latitude, longitude, DB_PATH, modelPath]) as Record<string, unknown>;
+      const result = runPython([scriptPath, finalOriginalPath, UPLOADS_DIR, modelPath]) as Record<string, unknown>;
       if (result && "error" in result) throw new Error(String(result.error));
-      res.json(result);
+      stats = result as typeof stats;
     } else {
-      res.json(simulateDetection(location_id, latitude, longitude));
+      stats = simulateStats();
     }
   } catch {
-    res.json(simulateDetection(location_id, latitude, longitude));
-  } finally {
-    try { unlinkSync(file.path); } catch {}
+    stats = simulateStats();
   }
+
+  let detectedUrl = originalUrl;
+  if (stats.detected_file) {
+    const detectedPath = path.join(UPLOADS_DIR, "detected", stats.detected_file);
+    const finalDetectedPath = compressVideoIfNeeded(detectedPath);
+    detectedUrl = `${host}/uploads/detected/${path.basename(finalDetectedPath)}`;
+  }
+  const timestamp = new Date().toISOString();
+
+  const saved = saveDetectionToColab({
+    location_id,
+    latitude: parseFloat(latitude),
+    longitude: parseFloat(longitude),
+    pothole_count: stats.pothole_count,
+    avg_diameter: stats.avg_diameter,
+    severity: stats.severity,
+    timestamp,
+    original_file: originalUrl,
+    detected_file: detectedUrl,
+  });
+
+  res.json({
+    detection_id: saved.id,
+    location_id,
+    latitude: parseFloat(latitude),
+    longitude: parseFloat(longitude),
+    pothole_count: stats.pothole_count,
+    avg_diameter: stats.avg_diameter,
+    severity: stats.severity,
+    timestamp,
+    original_image_url: originalUrl,
+    detected_image_url: detectedUrl,
+  });
 });
 
 /** GET /api/upload/status — quick health check: model + script present? */

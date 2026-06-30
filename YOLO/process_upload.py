@@ -1,13 +1,15 @@
 """
 RHMS Automated Pothole Detection
-Usage: python process_upload.py <file> <location_id> <lat> <lon> <db_path> <model_path>
-Writes detection results to SQLite and prints JSON summary to stdout.
+Usage: python process_upload.py <file> <uploads_dir> <model_path>
+
+Runs YOLO inference on the uploaded file, saves an annotated copy under
+<uploads_dir>/detected/, and prints a JSON summary to stdout. Does not
+touch the database — the caller (api-server) owns persistence so both the
+real-model path and the simulated fallback write through the same code.
 """
 import sys
 import json
 import os
-import sqlite3
-from datetime import datetime
 
 
 def get_severity(avg_diameter: float, pothole_count: int) -> str:
@@ -21,9 +23,7 @@ def get_severity(avg_diameter: float, pothole_count: int) -> str:
     return "Critical"
 
 
-def run(file_path: str, location_id: str, lat: float, lon: float,
-        db_path: str, model_path: str) -> dict:
-
+def run(file_path: str, uploads_dir: str, model_path: str) -> dict:
     try:
         from ultralytics import YOLO
     except ImportError:
@@ -44,6 +44,10 @@ def run(file_path: str, location_id: str, lat: float, lon: float,
         retina_masks=True,
         stream=True,
         verbose=False,
+        save=True,
+        project=uploads_dir,
+        name="detected",
+        exist_ok=True,
     )
 
     rows = []
@@ -64,46 +68,28 @@ def run(file_path: str, location_id: str, lat: float, lon: float,
     pothole_count = len(rows)
     avg_diameter = sum(r["diameter_px"] for r in rows) / pothole_count if pothole_count else 0.0
     severity = get_severity(avg_diameter, pothole_count)
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT OR IGNORE INTO locations(location_id, latitude, longitude) VALUES(?,?,?)",
-        (location_id, lat, lon),
-    )
-    cur.execute(
-        "INSERT INTO detections(location_id, timestamp, pothole_count, avg_diameter, severity) "
-        "VALUES(?,?,?,?,?)",
-        (location_id, timestamp, pothole_count, round(avg_diameter, 2), severity),
-    )
-    detection_id = cur.lastrowid
-    conn.commit()
-    conn.close()
+    detected_filename = os.path.basename(file_path)
+    detected_full_path = os.path.join(uploads_dir, "detected", detected_filename)
+    if not os.path.exists(detected_full_path):
+        detected_filename = None
 
     return {
-        "detection_id": detection_id,
-        "location_id": location_id,
-        "latitude": lat,
-        "longitude": lon,
         "pothole_count": pothole_count,
         "avg_diameter": round(avg_diameter, 2),
         "severity": severity,
-        "timestamp": timestamp,
+        "detected_file": detected_filename,
     }
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 7:
-        print(json.dumps({"error": "Usage: process_upload.py <file> <loc_id> <lat> <lon> <db> <model>"}))
+    if len(sys.argv) < 4:
+        print(json.dumps({"error": "Usage: process_upload.py <file> <uploads_dir> <model_path>"}))
         sys.exit(1)
 
     result = run(
         file_path=sys.argv[1],
-        location_id=sys.argv[2],
-        lat=float(sys.argv[3]),
-        lon=float(sys.argv[4]),
-        db_path=sys.argv[5],
-        model_path=sys.argv[6],
+        uploads_dir=sys.argv[2],
+        model_path=sys.argv[3],
     )
     print(json.dumps(result))

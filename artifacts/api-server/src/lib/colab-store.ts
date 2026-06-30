@@ -57,6 +57,7 @@ const ARTIFACT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const MAIN_REPO_ROOT = path.resolve(ARTIFACT_DIR, "..", "..", "..");
 export const YOLO_DIR = process.env["COLAB_YOLO_DIR"] ?? path.join(MAIN_REPO_ROOT, "YOLO");
 export const DB_PATH = process.env["COLAB_DATABASE_PATH"] ?? path.join(YOLO_DIR, "database.db");
+export const UPLOADS_DIR = process.env["COLAB_UPLOADS_DIR"] ?? path.join(YOLO_DIR, "uploads");
 const DB_DIR = path.dirname(DB_PATH);
 const POTHOLE_CSV_CANDIDATES = [
   path.join(DB_DIR, "pothole_segmentation_results.csv"),

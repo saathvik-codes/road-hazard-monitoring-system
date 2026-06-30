@@ -41,6 +41,9 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# User-uploaded media (persisted at runtime, not checked in)
+YOLO/uploads/
+
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
