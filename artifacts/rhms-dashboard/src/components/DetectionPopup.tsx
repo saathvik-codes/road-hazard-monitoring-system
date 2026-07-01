@@ -43,6 +43,17 @@ export function DetectionPopup({ id, onClose }: DetectionPopupProps) {
   const avgConfidence = potholes?.length ? potholes.reduce((s, p) => s + p.confidence, 0) / potholes.length : 0;
   const maxDiameter = potholes?.length ? Math.max(...potholes.map((p) => p.diameter_cm)) : 0;
 
+  // Only show "Detected" when it's a distinct file from "Original"; older
+  // detections saved before the backend fix may still have them equal.
+  const visionImages = detection
+    ? [
+        { label: "Original", url: detection.original_image_url },
+        ...(detection.detected_image_url && detection.detected_image_url !== detection.original_image_url
+          ? [{ label: "Detected", url: detection.detected_image_url }]
+          : []),
+      ]
+    : [];
+
   return (
     <AnimatePresence>
       {id !== null && (
@@ -209,12 +220,8 @@ export function DetectionPopup({ id, onClose }: DetectionPopupProps) {
                   {/* Images */}
                   <div>
                     <span className="text-[10px] font-bold text-[#2d2d2d] uppercase tracking-widest mb-2 block">Vision Output</span>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { label: "Original", url: detection.original_image_url },
-                        { label: "Detected", url: detection.detected_image_url },
-                        { label: "Mask", url: detection.mask_image_url },
-                      ].map((img, i) => (
+                    <div className={`grid gap-2 ${visionImages.length === 1 ? "grid-cols-1 max-w-[33%]" : "grid-cols-2"}`}>
+                      {visionImages.map((img, i) => (
                         <motion.div
                           key={i}
                           initial={{ opacity: 0, scale: 0.95 }}

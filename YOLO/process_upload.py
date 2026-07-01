@@ -10,6 +10,9 @@ real-model path and the simulated fallback write through the same code.
 import sys
 import json
 import os
+import io
+import contextlib
+import logging
 
 
 def get_severity(avg_diameter: float, pothole_count: int) -> str:
@@ -35,35 +38,40 @@ def run(file_path: str, uploads_dir: str, model_path: str) -> dict:
     if not os.path.exists(file_path):
         return {"error": f"File not found: {file_path}"}
 
+    logging.getLogger("ultralytics").setLevel(logging.ERROR)
     model = YOLO(model_path)
 
-    results_iter = model.predict(
-        source=file_path,
-        conf=0.20,
-        iou=0.4,
-        retina_masks=True,
-        stream=True,
-        verbose=False,
-        save=True,
-        project=uploads_dir,
-        name="detected",
-        exist_ok=True,
-    )
+    # ultralytics writes progress/summary lines straight to stdout regardless of
+    # verbose=False, which would corrupt the single JSON line this script must emit.
+    # Only the final json.dumps(result) print below is allowed to reach real stdout.
+    with contextlib.redirect_stdout(io.StringIO()):
+        results_iter = model.predict(
+            source=file_path,
+            conf=0.20,
+            iou=0.4,
+            retina_masks=True,
+            stream=True,
+            verbose=False,
+            save=True,
+            project=uploads_dir,
+            name="detected",
+            exist_ok=True,
+        )
 
-    rows = []
-    for frame_idx, result in enumerate(results_iter):
-        n = len(result.boxes) if result.boxes is not None else 0
-        for i in range(n):
-            conf = float(result.boxes.conf[i].item())
-            if result.masks is not None and i < len(result.masks.xy):
-                mask = result.masks.xy[i]
-                xs, ys = mask[:, 0], mask[:, 1]
-                diameter = (float(xs.max() - xs.min()) + float(ys.max() - ys.min())) / 2
-            else:
-                x1, y1, x2, y2 = result.boxes.xyxy[i].cpu().numpy()
-                diameter = ((x2 - x1) + (y2 - y1)) / 2
-            rows.append({"frame": frame_idx, "confidence": round(conf, 4),
-                         "diameter_px": round(float(diameter), 2)})
+        rows = []
+        for frame_idx, result in enumerate(results_iter):
+            n = len(result.boxes) if result.boxes is not None else 0
+            for i in range(n):
+                conf = float(result.boxes.conf[i].item())
+                if result.masks is not None and i < len(result.masks.xy):
+                    mask = result.masks.xy[i]
+                    xs, ys = mask[:, 0], mask[:, 1]
+                    diameter = (float(xs.max() - xs.min()) + float(ys.max() - ys.min())) / 2
+                else:
+                    x1, y1, x2, y2 = result.boxes.xyxy[i].cpu().numpy()
+                    diameter = ((x2 - x1) + (y2 - y1)) / 2
+                rows.append({"frame": frame_idx, "confidence": round(conf, 4),
+                             "diameter_px": round(float(diameter), 2)})
 
     pothole_count = len(rows)
     avg_diameter = sum(r["diameter_px"] for r in rows) / pothole_count if pothole_count else 0.0

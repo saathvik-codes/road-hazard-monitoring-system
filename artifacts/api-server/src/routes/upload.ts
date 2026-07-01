@@ -51,13 +51,6 @@ function getSeverity(avgDiameter: number, potholeCount: number): string {
   return "Low";
 }
 
-function simulateStats() {
-  const potholeCount = Math.floor(Math.random() * 5);
-  const avgDiameter = potholeCount > 0 ? Math.round((15 + Math.random() * 35) * 100) / 100 : 0;
-  const severity = getSeverity(avgDiameter, potholeCount);
-  return { pothole_count: potholeCount, avg_diameter: avgDiameter, severity, detected_file: null as string | null };
-}
-
 /** POST /api/upload
  * multipart fields:
  *   file       — image or video
@@ -100,20 +93,23 @@ router.post("/", (req, res, next) => {
   const modelPath = path.join(YOLO_DIR, "best.pt");
   const scriptPath = path.join(YOLO_DIR, "process_upload.py");
 
-  let stats: { pothole_count: number; avg_diameter: number; severity: string; detected_file: string | null };
-  try {
-    if (existsSync(modelPath) && existsSync(scriptPath)) {
-      const result = runPython([scriptPath, finalOriginalPath, UPLOADS_DIR, modelPath]) as Record<string, unknown>;
-      if (result && "error" in result) throw new Error(String(result.error));
-      stats = result as typeof stats;
-    } else {
-      stats = simulateStats();
-    }
-  } catch {
-    stats = simulateStats();
+  if (!existsSync(modelPath) || !existsSync(scriptPath)) {
+    res.status(503).json({ error: "Detection model is not available on the server. Contact an administrator." });
+    return;
   }
 
-  let detectedUrl = originalUrl;
+  let stats: { pothole_count: number; avg_diameter: number; severity: string; detected_file: string | null };
+  try {
+    const result = runPython([scriptPath, finalOriginalPath, UPLOADS_DIR, modelPath]) as Record<string, unknown>;
+    if (result && "error" in result) throw new Error(String(result.error));
+    stats = result as typeof stats;
+  } catch (e) {
+    console.error("[upload] detection failed:", e);
+    res.status(502).json({ error: `Detection failed: ${e instanceof Error ? e.message : String(e)}` });
+    return;
+  }
+
+  let detectedUrl: string | null = null;
   if (stats.detected_file) {
     const detectedPath = path.join(UPLOADS_DIR, "detected", stats.detected_file);
     const finalDetectedPath = compressVideoIfNeeded(detectedPath);
