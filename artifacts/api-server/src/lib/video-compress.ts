@@ -1,6 +1,9 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, statSync, unlinkSync, renameSync } from "node:fs";
 
+// Requires the Python package `imageio_ffmpeg` (pip install imageio_ffmpeg) to resolve a
+// bundled ffmpeg binary. Optional: if it's missing, compression is skipped and videos are
+// stored uncompressed rather than failing the upload — see resolveFfmpegPath() below.
 const VIDEO_EXT = /\.(mp4|avi|mov|mkv|webm)$/i;
 const COMPRESS_THRESHOLD_BYTES = Number(process.env["VIDEO_COMPRESS_THRESHOLD_MB"] ?? 10) * 1024 * 1024;
 

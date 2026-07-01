@@ -47,7 +47,8 @@ A real-time pothole detection dashboard powered by **YOLOv8 instance segmentatio
 | Node.js | 20 or later |
 | pnpm | 10 or later (`npm i -g pnpm`) |
 | Python | 3.9 or later |
-| ultralytics | `pip install ultralytics` (needed for Upload page) |
+| ultralytics | `pip install ultralytics` (needed for Upload page detection) |
+| imageio_ffmpeg | `pip install imageio_ffmpeg` (optional — compresses large video uploads; without it, videos upload uncompressed) |
 
 ---
 
@@ -197,8 +198,11 @@ What happens automatically:
 ### Requirements for the Upload pipeline
 
 ```bash
-pip install ultralytics opencv-python
+pip install ultralytics opencv-python imageio_ffmpeg
 ```
+
+- `ultralytics` + `opencv-python` — required for detection itself (`YOLO/process_upload.py`). Without it, uploads fail with a clear "ultralytics not installed" error instead of running.
+- `imageio_ffmpeg` — optional. Used by `artifacts/api-server/src/lib/video-compress.ts` to re-encode video uploads over 10MB down to H.264 before saving. If it's missing, large videos are just stored uncompressed — uploads still work.
 
 The API server auto-tries `python`, `python3`, and `py` — whichever is available on your system.
 
